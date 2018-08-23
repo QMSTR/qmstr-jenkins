@@ -1,0 +1,109 @@
+#!groovy
+node {
+    try{
+        def qmstraddress = ""
+        def qmstrbin = "${env.WORKSPACE}/bin"
+        def qmstrcachedir = "${env.WORKSPACE}/qmstrcache"
+
+        parameters {
+            string(name: 'curlbranch', defaultValue: 'master', description: 'Branch of curl repo to build')
+        }
+
+        stage('clean')
+        {
+            cleanWs(deleteDirs: true,
+                patterns: [
+                    [pattern: 'qmstrcache', type: 'EXCLUDE'],
+                    [pattern: '.git', type: 'EXCLUDE']
+            ])
+            sh "ls -la"
+        }
+        stage('Clone sources') {
+            dir('qmstr-master') {
+                checkout([$class: 'GitSCM', doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/QMSTR/qmstr.git']]])
+            }
+            dir("qmstr-demo"){
+                checkout([$class: 'GitSCM', doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/endocode/qmstr-demo.git']]])
+            }
+            dir("qmstr-demo/demos/curl/curl"){
+                checkout([$class: 'GitSCM',
+                    branches: [[name: "${params.curlbranch}"]],
+                    userRemoteConfigs: [[url: 'https://github.com/curl/curl']]
+                ])
+                sh "git clean -fxd"
+                sh "mkdir build"
+            }
+            dir("web"){
+                git poll: false, url: 'https://github.com/qmstr/web'
+            }
+        }
+        stage('Compile qmstr') {
+            dir("qmstr-master"){
+                sh 'make democontainer'
+                sh "mkdir ${qmstrbin}"
+                sh "mkdir ${qmstrcachedir} || true"
+                def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
+                mastername = mastername.trim()
+                sh "docker cp ${mastername}:/usr/local/bin/qmstr ${qmstrbin}/"
+                sh "docker cp ${mastername}:/usr/local/bin/qmstrctl ${qmstrbin}/"
+                sh "docker rm ${mastername}"
+            }
+        }
+        stage('Build curl builder image') {
+            dir("qmstr-demo"){
+                sh 'make curldemo'
+            }
+        }
+        stage('Start qmstr-master server') {
+            dir("qmstr-demo/demos/curl") {
+                sh "sed -i -e 's#server:#server:\\n    cachedir: \"${qmstrcachedir}\"#' qmstr.yaml"
+                sh "cat qmstr.yaml"
+                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait |cut -d \"=\" -f 2", returnStdout: true)
+                qmstraddress = qmstraddress.trim()
+            }
+        }
+        stage('Compile cURL with qmstr') {
+            dir("qmstr-demo/demos/curl"){
+                withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstr --container qmstr/curldemo -- cmake .. && qmstr --container qmstr/curldemo -- make" 
+                }
+            }   
+        }
+        stage('Analysis') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl analyze --verbose"
+            }
+        }
+        stage('Reporting') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl report --verbose"
+            }
+        }
+        stage('Shutdown qmstr-master') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                sh "qmstrctl quit"
+            }
+        }
+        stage('Archive artifact')
+        {
+            archiveArtifacts 'qmstr/qmstr-reporter-html/qmstr-reports.tar.bz2'
+        }
+        stage('Publish report to website') {
+            if (currentBuild.getPreviousBuild().result != 'SUCCESS') {
+                sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}"}' "https://synapse.endocode.com:8448/_matrix/client/r0/rooms/%21ufARvCRdxKDXsnrZKT:synapse.endocode.com/send/m.room.message?access_token=MDAyMmxvY2F0aW9uIHN5bmFwc2UuZW5kb2NvZGUuY29tCjAwMTNpZGVudGlmaWVyIGtleQowMDEwY2lkIGdlbiA9IDEKMDAzMGNpZCB1c2VyX2lkID0gQGVuZG9ib3Q6c3luYXBzZS5lbmRvY29kZS5jb20KMDAxNmNpZCB0eXBlID0gYWNjZXNzCjAwMjFjaWQgbm9uY2UgPSBUO20uVGozZDtWTE9UbEFhCjAwMmZzaWduYXR1cmUgrBMEp28xjOpGgVH62zK3JRD_Mqvkq6vgLGMebIfTHUAK" -k """
+            }
+            build job: '/QMSTR-intern/web-publisher', propagate: false
+        }
+    }
+    catch (Exception e)
+    {
+        withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+            sh "${qmstrbin}/qmstrctl logs"
+            sh "${qmstrbin}/qmstrctl quit"
+        }
+        currentBuild.result = 'FAILURE'
+        if (currentBuild.getPreviousBuild().result != 'FAILURE') {
+            sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"}' "https://synapse.endocode.com:8448/_matrix/client/r0/rooms/%21ufARvCRdxKDXsnrZKT:synapse.endocode.com/send/m.room.message?access_token=MDAyMmxvY2F0aW9uIHN5bmFwc2UuZW5kb2NvZGUuY29tCjAwMTNpZGVudGlmaWVyIGtleQowMDEwY2lkIGdlbiA9IDEKMDAzMGNpZCB1c2VyX2lkID0gQGVuZG9ib3Q6c3luYXBzZS5lbmRvY29kZS5jb20KMDAxNmNpZCB0eXBlID0gYWNjZXNzCjAwMjFjaWQgbm9uY2UgPSBUO20uVGozZDtWTE9UbEFhCjAwMmZzaWduYXR1cmUgrBMEp28xjOpGgVH62zK3JRD_Mqvkq6vgLGMebIfTHUAK" -k """
+        }
+    }
+}
