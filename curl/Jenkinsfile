@@ -1,9 +1,10 @@
 #!groovy
 node {
     def qmstrbin = "${env.WORKSPACE}/bin"
+    def qmstraddress = ""
+    def qmstrcachedir = "${env.WORKSPACE}/qmstrcache"
+
     try{
-        def qmstraddress = ""
-        def qmstrcachedir = "${env.WORKSPACE}/qmstrcache"
 
         parameters {
             string(name: 'curlbranch', defaultValue: 'master', description: 'Branch of curl repo to build')
@@ -19,7 +20,7 @@ node {
                 patterns: [
                     [pattern: 'qmstrcache', type: 'EXCLUDE'],
                     [pattern: 'qmstrcache/**', type: 'EXCLUDE'],
-                    [pattern: '.git', type: 'EXCLUDE']
+                    [pattern: '.git', type: 'EXCLUDE'],
                     [pattern: '.git/**', type: 'EXCLUDE']
             ])
             sh "ls -laR"
