@@ -20,7 +20,7 @@ node {
                     [pattern: 'qmstrcache', type: 'EXCLUDE'],
                     [pattern: '.git', type: 'EXCLUDE']
             ])
-            sh "ls -la"
+            sh "ls -laR"
         }
         stage('Clone sources') {
             dir('qmstr-master') {
