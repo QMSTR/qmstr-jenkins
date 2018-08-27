@@ -9,6 +9,8 @@ node {
             string(name: 'curlbranch', defaultValue: 'master', description: 'Branch of curl repo to build')
             string(name: 'qmstrbranch', defaultValue: 'master', description: 'Branch of qmstr repo to build')
             string(name: 'qmstrrepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
+            string(name: 'qmstrdemobranch', defaultValue: 'master', description: 'Branch of qmstr demo repo to build')
+            string(name: 'qmstrdemorepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
         }
 
         stage('clean')
@@ -22,15 +24,20 @@ node {
         }
         stage('Clone sources') {
             dir('qmstr-master') {
-                checkout([$class: 'GitSCM', 
-                doGenerateSubmoduleConfigurations: false, 
-                extensions: [], 
-                submoduleCfg: [], 
-                branches: [[name: "${params.qmstrbranch}"]],
-                userRemoteConfigs: [[url: "https://github.com/${params.qmstrrepo}/qmstr.git"]]])
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "${params.qmstrbranch}"]],
+                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrrepo}/qmstr.git"]]])
             }
             dir("qmstr-demo"){
-                checkout([$class: 'GitSCM', doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/endocode/qmstr-demo.git']]])
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "${params.qmstrdemobranch}"]],
+                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrdemorepo}/qmstr-demo.git"]]])
             }
             dir("qmstr-demo/demos/curl/curl"){
                 checkout([$class: 'GitSCM',
