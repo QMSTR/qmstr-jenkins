@@ -18,7 +18,9 @@ node {
             cleanWs(deleteDirs: true,
                 patterns: [
                     [pattern: 'qmstrcache', type: 'EXCLUDE'],
+                    [pattern: 'qmstrcache/**', type: 'EXCLUDE'],
                     [pattern: '.git', type: 'EXCLUDE']
+                    [pattern: '.git/**', type: 'EXCLUDE']
             ])
             sh "ls -laR"
         }
