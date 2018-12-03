@@ -1,0 +1,129 @@
+#!groovy
+node {
+    def qmstrbin = "${env.WORKSPACE}/bin"
+    def qmstraddress = ""
+    def qmstrcachedir = "${env.WORKSPACE}/qmstrcache"
+
+    try{
+
+        parameters {
+            string(name: 'qmstrbranch', defaultValue: 'master', description: 'Branch of qmstr repo to build')
+            string(name: 'qmstrrepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
+            string(name: 'qmstrdemobranch', defaultValue: 'master', description: 'Branch of qmstr demo repo to build')
+            string(name: 'qmstrdemorepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
+        }
+
+        stage('clean')
+        {
+            cleanWs(deleteDirs: true,
+                patterns: [
+                    [pattern: 'qmstrcache', type: 'EXCLUDE'],
+                    [pattern: 'qmstrcache/**', type: 'EXCLUDE'],
+                    [pattern: '.git', type: 'EXCLUDE'],
+                    [pattern: '.git/**', type: 'EXCLUDE']
+            ])
+            sh "ls -laR"
+        }
+        stage('Clone sources') {
+            dir('qmstr') {
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "${params.qmstrbranch}"]],
+                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrrepo}/qmstr.git"]]])
+            }
+            dir("qmstr-demo"){
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "${params.qmstrdemobranch}"]],
+                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrdemorepo}/qmstr-demo.git"]]])
+            }
+            dir("qmstr-demo/demos/java-jabref/jabref"){
+                checkout([$class: 'GitSCM',
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: 'https://github.com/JabRef/jabref.git']]
+                ])
+                sh "git clean -fxd"
+            }
+            dir("web"){
+                git poll: false, url: 'https://github.com/qmstr/web'
+            }
+        }
+        stage('Apply qmstr plugin to gradle build configuration') {
+            dir("qmstr-demo/demos/java-jabref/jabref"){
+                sh 'patch -p1  < ../add-qmstr.patch'
+            }
+        }
+        stage('Compile qmstr') {
+            dir("qmstr"){
+                sh 'make democontainer'
+                sh "mkdir ${qmstrbin}"
+                sh "mkdir ${qmstrcachedir} || true"
+                def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
+                mastername = mastername.trim()
+                sh "docker cp ${mastername}:/usr/local/bin/qmstr ${qmstrbin}/"
+                sh "docker cp ${mastername}:/usr/local/bin/qmstrctl ${qmstrbin}/"
+                sh "docker rm ${mastername}"
+            }
+        }
+        stage('Build jabref builder image') {
+            dir("qmstr-demo"){
+                sh 'make java-jabrefdemo EXTRA_BUILD_OPTS=--no-cache'
+            }
+        }
+        stage('Start qmstr-master server') {
+            dir("qmstr-demo/demos/java-jabref") {
+                sh "sed -i -e 's#server:#server:\\n    cachedir: \"${qmstrcachedir}\"#' qmstr.yaml"
+                sh "cat qmstr.yaml"
+                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait |cut -d \"=\" -f 2", returnStdout: true)
+                qmstraddress = qmstraddress.trim()
+            }
+        }
+        stage('Compile jabref with qmstr') {
+            dir("qmstr-demo/demos/java-jabref"){
+                withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstr --container qmstr/java-jabrefdemo ./gradlew qmstr" 
+                }
+            }   
+        }
+        stage('Analysis') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl analyze --verbose"
+            }
+        }
+        stage('Reporting') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl report --verbose"
+            }
+        }
+        stage('Shutdown qmstr-master') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                sh "qmstrctl quit"
+            }
+        }
+        stage('Archive artifact')
+        {
+            archiveArtifacts 'qmstr/qmstr-reporter-html/qmstr-reports.tar.bz2'
+        }
+        stage('Publish report to website') {
+            build job: '/QMSTR-intern/web-publisher', propagate: false
+        }
+    }
+    catch (Exception e)
+    {
+        currentBuild.result = 'FAILURE'
+        if (currentBuild.getPreviousBuild().result != 'FAILURE') {
+            sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"}' ${matrix_url} -k """
+        }
+
+        if (fileExists(qmstrbin + 'qmstrctl')) {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                sh "qmstrctl logs"
+                sh "qmstrctl quit"
+            }
+        }
+    }
+}
