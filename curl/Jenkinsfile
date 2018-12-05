@@ -2,7 +2,7 @@
 node {
     def qmstrbin = "${env.WORKSPACE}/bin"
     def qmstraddress = ""
-    def qmstrcachedir = "${env.WORKSPACE}/qmstrcache"
+    def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
     def internal_room_id = "gFxKQfHjspCmrqaSRE"
     def matrix_url = "https://synapse.endocode.com:8448/_matrix/client/r0/rooms/%21${internal_room_id}:synapse.endocode.com/send/m.room.message?access_token=MDAyMmxvY2F0aW9uIHN5bmFwc2UuZW5kb2NvZGUuY29tCjAwMTNpZGVudGlmaWVyIGtleQowMDEwY2lkIGdlbiA9IDEKMDAzMGNpZCB1c2VyX2lkID0gQGVuZG9ib3Q6c3luYXBzZS5lbmRvY29kZS5jb20KMDAxNmNpZCB0eXBlID0gYWNjZXNzCjAwMjFjaWQgbm9uY2UgPSBUO20uVGozZDtWTE9UbEFhCjAwMmZzaWduYXR1cmUgrBMEp28xjOpGgVH62zK3JRD_Mqvkq6vgLGMebIfTHUAK"
 

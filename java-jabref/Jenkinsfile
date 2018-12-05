@@ -2,7 +2,7 @@
 node {
     def qmstrbin = "${env.WORKSPACE}/bin"
     def qmstraddress = ""
-    def qmstrcachedir = "${env.WORKSPACE}/qmstrcache"
+    def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
 
     try{
 
