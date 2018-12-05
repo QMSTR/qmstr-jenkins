@@ -111,7 +111,7 @@ node {
             if (currentBuild.getPreviousBuild().result != 'SUCCESS') {
                 sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}"}' ${matrix_url} -k """
             }
-            build job: '/QMSTR-intern/web-publisher', propagate: false
+            build job: '/QMSTR-intern/web-publisher', parameters: [string(name: 'project', value: 'curl')], propagate: false
         }
     }
     catch (Exception e)

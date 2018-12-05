@@ -109,7 +109,7 @@ node {
             archiveArtifacts 'qmstr/qmstr-reporter-html/qmstr-reports.tar.bz2'
         }
         stage('Publish report to website') {
-            build job: '/QMSTR-intern/web-publisher', propagate: false
+            build job: '/QMSTR-intern/web-publisher', parameters: [string(name: 'project', value: 'jabref')], propagate: false
         }
     }
     catch (Exception e)
