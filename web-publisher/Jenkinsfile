@@ -23,7 +23,8 @@ node{
     catch (Exception e)
     {
         currentBuild.result = 'FAILURE'
-        println(e)
-        sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"}' ${matrix_url} -k """
+        if (currentBuild.getPreviousBuild().result != 'FAILURE') {
+            sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"}' ${matrix_url} -k """
+        }
     }
 }
