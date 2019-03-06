@@ -84,7 +84,7 @@ node {
         stage('Compile cURL with qmstr') {
             dir("qmstr-demo/demos/curl"){
                 withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
-                    sh "qmstrctl create package:curl && qmstr --container qmstr/curldemo -- cmake .. && qmstr --container qmstr/curldemo -- make"
+                    sh "qmstrctl create package:cURL && qmstr --container qmstr/curldemo -- cmake .. && qmstr --container qmstr/curldemo -- make"
                 }
             }
         }

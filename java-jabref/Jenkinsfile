@@ -87,7 +87,7 @@ node {
         stage('Compile jabref with qmstr') {
             dir("qmstr-demo/demos/java-jabref"){
                 withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
-                    sh "qmstrctl create package:jabref && qmstr --container qmstr/java-jabrefdemo ./gradlew qmstr"
+                    sh "qmstrctl create package:JabRef && qmstr --container qmstr/java-jabrefdemo ./gradlew qmstr"
                 }
             }
         }
