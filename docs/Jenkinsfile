@@ -1,0 +1,51 @@
+node
+{
+    def qmstrbin = "${env.WORKSPACE}/bin"
+    def qmstraddress = ""
+    def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
+    try
+    {
+        parameters {
+            string(name: 'qmstrrepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
+            string(name: 'qmstrbranch', defaultValue: 'master', description: 'Branch of qmstr repo to build')
+        }
+        stage('clean') {
+            cleanWs(deleteDirs: true,
+                patterns: [
+                    [pattern: 'qmstrcache', type: 'EXCLUDE'],
+                    [pattern: 'qmstrcache/**', type: 'EXCLUDE'],
+                    [pattern: '.git', type: 'EXCLUDE'],
+                    [pattern: '.git/**', type: 'EXCLUDE']
+            ])
+            sh "ls -laR"
+        }
+        stage('Clone sources') {
+            dir('qmstr') {
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "${params.qmstrbranch}"]],
+                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrrepo}/qmstr.git"]]])
+                sh "git clean -fxd"
+            }
+        }
+        stage('Generating docs statics file') {
+            withEnv(["PATH+SNAP=/snap/bin"]){
+                sh 'cd qmstr/doc && git submodule init && git submodule update'
+                sh 'cd qmstr && make docs'
+            }
+        }
+        stage('Archive artifact') {
+            archiveArtifacts 'qmstr/doc/qmstr-doc.tar.bz2'
+        }
+        stage('Publish report to website') {
+            build job: '/QMSTR-intern/web-publisher', parameters: [string(name: 'project', value: 'docs')], propagate: false
+        }
+    }
+    catch (Exception e)
+    {
+        currentBuild.result = 'FAILURE'
+        echo "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"
+    }
+}
