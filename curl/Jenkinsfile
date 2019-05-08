@@ -85,7 +85,7 @@ node {
         stage('Compile cURL with qmstr') {
             dir("qmstr-demo/demos/curl"){
                 withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
-                    curlversion = sh(script: "git describe --long --dirty --tags", returnStdout: true)
+                    curlversion = sh(script: "cd curl && git describe --long --dirty --tags", returnStdout: true)
                     sh "qmstrctl create package:cURL --version ${curlversion}"
                     sh "qmstrctl spawn qmstr/curldemo qmstr run -i /tmp/qmstr-inst cmake .."
                     sh "qmstrctl spawn qmstr/curldemo qmstr run -i /tmp/qmstr-inst make"
