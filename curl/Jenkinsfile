@@ -110,7 +110,7 @@ node {
         }
         stage('Archive artifact')
         {
-            archiveArtifacts 'qmstr/qmstr-reporter-html/qmstr-reports.tar.bz2'
+            archiveArtifacts 'qmstr/qmstr-reporter-html/HTML_Reporter/qmstr-reports.tar.bz2'
         }
         stage('Publish report to website') {
             if (currentBuild.getPreviousBuild().result != 'SUCCESS') {
