@@ -4,24 +4,19 @@ node{
     def extractreport = '(cd ./static && tar xvjf ../qmstr-reports.tar.bz2 && mv ./reports ./packages)'
     def extractdocs = '(cd ./static && tar xvjf ../qmstr-doc.tar.bz2)'
     try{
-        parameters {
-            string(name: 'project', defaultValue: 'nil', description: 'Project name that triggers web publisher')
-        }
         stage('Clone sources') {
             cleanWs()
             git credentialsId: '6374572f-c47a-4939-beda-2ee601d65ff7', poll: true, url: 'https://github.com/qmstr/web'
+        }
+        stage('Copy artifacts') {
             echo "Copying artifacts from last successful build from DOCS job"
             copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'QMSTR/qmstr-docs-static', selector: upstream(fallbackToLastSuccessful: true)
-            echo "Copying artifacts from last successful build from ${params.project} job"
-            if ("${params.project}" == 'curl') {
-                copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'QMSTR/qmstr-cURL-demo', selector: upstream(fallbackToLastSuccessful: true)
-            } else if ("${params.project}" == 'jabref') {
-                copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'QMSTR/qmstr-jabref-demo', selector: upstream(fallbackToLastSuccessful: true)
-            }
+            echo "Copying artifacts from last successful build from the hugo website generation job"
+            copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'QMSTR/hugo-website-generation', selector: upstream(fallbackToLastSuccessful: true)
         }
         stage('Publish website'){
             withEnv(["PATH+SNAP=/snap/bin"]){
-                echo "Publishing QMSTR site with ${params.project} project"
+                echo "Publishing QMSTR site"
                 sh 'git submodule init && git submodule update'
                 sh "${extractdocs}"
                 sh "${extractreport}"
@@ -29,7 +24,7 @@ node{
                 sh 'git config http.sslVersion tlsv1.2'
                 withCredentials([usernamePassword(credentialsId: '6374572f-c47a-4939-beda-2ee601d65ff7', passwordVariable: 'cipassword', usernameVariable: 'ciuser')]) {
                     sh 'git push --force https://${ciuser}:${cipassword}@github.com/qmstr/web gh-pages'
-                    sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished for project ${params.project}. see results at ${env.BUILD_URL}"}' ${matrix_url} -k """
+                    sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}"}' ${matrix_url} -k """
                 }
             }
         }

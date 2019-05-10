@@ -40,7 +40,7 @@ node
             archiveArtifacts 'qmstr/doc/qmstr-doc.tar.bz2'
         }
         stage('Publish report to website') {
-            build job: '/QMSTR-intern/web-publisher', parameters: [string(name: 'project', value: 'curl')], propagate: false
+            build job: '/QMSTR-intern/web-publisher', propagate: false
         }
     }
     catch (Exception e)
