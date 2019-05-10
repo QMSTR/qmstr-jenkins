@@ -52,9 +52,6 @@ node {
                 sh "git clean -fxd"
                 sh "mkdir build"
             }
-            dir("web"){
-                git poll: false, url: 'https://github.com/qmstr/web'
-            }
         }
         stage('Compile qmstr') {
             dir("qmstr-master"){
