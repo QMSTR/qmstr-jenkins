@@ -1,8 +1,5 @@
 node
 {
-    def qmstrbin = "${env.WORKSPACE}/bin"
-    def qmstraddress = ""
-    def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
     try
     {
         parameters {
@@ -30,10 +27,22 @@ node
                 sh "git clean -fxd"
             }
         }
+        stage('Compile qmstr') {
+            dir("qmstr-master"){
+                sh 'make democontainer'
+                def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
+                mastername = mastername.trim()
+                sh "docker cp ${mastername}:/usr/local/bin/qmstr ../qmstr/out/qmstr"
+                sh "docker cp ${mastername}:/usr/local/bin/qmstrctl ../qmstr/out/qmstrctl"
+                sh "docker rm ${mastername}"
+            }
+        }
         stage('Generating docs statics file') {
-            withEnv(["PATH+SNAP=/snap/bin"]){
-                sh 'cd qmstr/doc && git submodule init && git submodule update'
-                sh 'cd qmstr && touch lib/go-qmstr/service/* && make docs'
+            dir('qmstr') {
+                withEnv(["PATH+SNAP=/snap/bin"]){
+                   sh 'cd doc && git submodule init && git submodule update'
+                   sh 'make docs'
+                }
             }
         }
         stage('Archive artifact') {
