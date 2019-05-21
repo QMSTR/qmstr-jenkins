@@ -33,6 +33,7 @@ node
                 sh 'make democontainer'
                 def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
                 mastername = mastername.trim()
+                sh "touch lib/go-qmstr/service/*.go"
                 sh "docker cp ${mastername}:/usr/local/bin/qmstr out/"
                 sh "docker cp ${mastername}:/usr/local/bin/qmstrctl out/"
                 sh "docker rm ${mastername}"
