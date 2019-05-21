@@ -37,6 +37,7 @@ node
                 sh "docker cp ${mastername}:/usr/local/bin/qmstr out/"
                 sh "docker cp ${mastername}:/usr/local/bin/qmstrctl out/"
                 sh "docker rm ${mastername}"
+                sh "touch out/*"
             }
         }
         stage('Generating docs statics file') {
