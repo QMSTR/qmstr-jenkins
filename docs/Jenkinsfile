@@ -28,7 +28,7 @@ node
             }
         }
         stage('Compile qmstr') {
-            dir("qmstr-master"){
+            dir("qmstr"){
                 sh 'make democontainer'
                 def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
                 mastername = mastername.trim()
