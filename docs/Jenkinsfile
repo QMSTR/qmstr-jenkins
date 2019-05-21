@@ -29,11 +29,12 @@ node
         }
         stage('Compile qmstr') {
             dir("qmstr"){
+                sh 'mkdir out'
                 sh 'make democontainer'
                 def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
                 mastername = mastername.trim()
-                sh "docker cp ${mastername}:/usr/local/bin/qmstr ../qmstr/out/qmstr"
-                sh "docker cp ${mastername}:/usr/local/bin/qmstrctl ../qmstr/out/qmstrctl"
+                sh "docker cp ${mastername}:/usr/local/bin/qmstr out/"
+                sh "docker cp ${mastername}:/usr/local/bin/qmstrctl out/"
                 sh "docker rm ${mastername}"
             }
         }
