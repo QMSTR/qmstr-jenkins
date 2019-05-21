@@ -1,6 +1,4 @@
 node{
-    def internal_room_id = "gFxKQfHjspCmrqaSRE"
-    def matrix_url = "https://synapse.endocode.com:8448/_matrix/client/r0/rooms/%21${internal_room_id}:synapse.endocode.com/send/m.room.message?access_token=MDAyMmxvY2F0aW9uIHN5bmFwc2UuZW5kb2NvZGUuY29tCjAwMTNpZGVudGlmaWVyIGtleQowMDEwY2lkIGdlbiA9IDEKMDAzMGNpZCB1c2VyX2lkID0gQGVuZG9ib3Q6c3luYXBzZS5lbmRvY29kZS5jb20KMDAxNmNpZCB0eXBlID0gYWNjZXNzCjAwMjFjaWQgbm9uY2UgPSBUO20uVGozZDtWTE9UbEFhCjAwMmZzaWduYXR1cmUgrBMEp28xjOpGgVH62zK3JRD_Mqvkq6vgLGMebIfTHUAK"
     def extractreport = '(cd ./static && tar xvjf ../qmstr-reports.tar.bz2 && mv ./reports ./packages)'
     def extractdocs = '(cd ./static && tar xvjf ../qmstr-doc.tar.bz2)'
     try{
@@ -24,8 +22,8 @@ node{
                 sh 'git config http.sslVersion tlsv1.2'
                 withCredentials([usernamePassword(credentialsId: '6374572f-c47a-4939-beda-2ee601d65ff7', passwordVariable: 'cipassword', usernameVariable: 'ciuser')]) {
                     sh 'git push --force https://${ciuser}:${cipassword}@github.com/qmstr/web gh-pages'
-                    sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}"}' ${matrix_url} -k """
                 }
+                build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}")], propagate: false
             }
         }
     }
@@ -33,7 +31,7 @@ node{
     {
         currentBuild.result = 'FAILURE'
         if (currentBuild.getPreviousBuild().result != 'FAILURE') {
-            sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"}' ${matrix_url} -k """
+            build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}")], propagate: false
         }
     }
 }

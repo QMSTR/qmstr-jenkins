@@ -1,8 +1,6 @@
 node{
     def qmstrbin = "${env.WORKSPACE}/bin"
     def qmstraddress = ""
-    def internal_room_id = "gFxKQfHjspCmrqaSRE"
-    def matrix_url = "https://synapse.endocode.com:8448/_matrix/client/r0/rooms/%21${internal_room_id}:synapse.endocode.com/send/m.room.message?access_token=MDAyMmxvY2F0aW9uIHN5bmFwc2UuZW5kb2NvZGUuY29tCjAwMTNpZGVudGlmaWVyIGtleQowMDEwY2lkIGdlbiA9IDEKMDAzMGNpZCB1c2VyX2lkID0gQGVuZG9ib3Q6c3luYXBzZS5lbmRvY29kZS5jb20KMDAxNmNpZCB0eXBlID0gYWNjZXNzCjAwMjFjaWQgbm9uY2UgPSBUO20uVGozZDtWTE9UbEFhCjAwMmZzaWduYXR1cmUgrBMEp28xjOpGgVH62zK3JRD_Mqvkq6vgLGMebIfTHUAK"
     def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
 
     try{
@@ -43,7 +41,7 @@ node{
         }
         stage('Compile qmstr') {
             dir("qmstr-master"){
-                sh 'make democontainer'
+                sh 'make master'
                 sh "mkdir ${qmstrbin}"
                 sh "mkdir ${qmstrcachedir} || true"
                 def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
@@ -82,7 +80,7 @@ node{
         }
         stage('Publish report to website') {
             if (currentBuild.getPreviousBuild().result != 'SUCCESS') {
-                sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}"}' ${matrix_url} -k """
+                build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}")], propagate: false
             }
             build job: '/QMSTR-intern/web-publisher', propagate: false
         }
@@ -91,7 +89,7 @@ node{
     {
         currentBuild.result = 'FAILURE'
         if (currentBuild.getPreviousBuild().result != 'FAILURE') {
-            sh """ curl -XPOST -d '{"msgtype":"m.text", "body":"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"}' ${matrix_url} -k """
+            build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}")], propagate: false
         }
 
         if (fileExists(qmstrbin + 'qmstrctl')) {

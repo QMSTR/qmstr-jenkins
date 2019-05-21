@@ -55,6 +55,8 @@ node
     catch (Exception e)
     {
         currentBuild.result = 'FAILURE'
-        echo "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}"
+        if (currentBuild.getPreviousBuild().result != 'FAILURE') {
+            build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}")], propagate: false
+        }
     }
 }
