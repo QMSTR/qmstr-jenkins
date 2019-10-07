@@ -58,8 +58,13 @@ node
     catch (Exception e)
     {
         currentBuild.result = 'FAILURE'
-        if (currentBuild.getPreviousBuild().result != 'FAILURE') {
-            build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}")], propagate: false
+    }
+    finally {
+        if (currentBuild.result == 'SUCCESS' && currentBuild.getPreviousBuild().result != 'SUCCESS') {
+            googlechatnotification message: "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. See ${env.BUILD_URL}", url: "id:qmstr_hangout_chat_webhook"
+        }
+        if (currentBuild.result == 'FAILURE') {
+            googlechatnotification message: "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} failed. See ${env.BUILD_URL}", url: "id:qmstr_hangout_chat_webhook"
         }
     }
 }

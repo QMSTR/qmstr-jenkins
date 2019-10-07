@@ -105,24 +105,26 @@ node {
             }
         }
         stage('Generate hugo website') {
-            if (currentBuild.getPreviousBuild().result != 'SUCCESS') {
-                build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. see results at ${env.BUILD_URL}")], propagate: false
-            }
             build job: '/QMSTR/hugo-website-generation', parameters: [[$class: 'StringParameterValue', name: 'qmstrbranch', value: params.qmstrbranch], [$class: 'StringParameterValue', name: 'qmstrrepo', value: params.qmstrrepo], [$class: 'StringParameterValue', name: 'qmstrdemobranch', value: params.qmstrdemobranch], [$class: 'StringParameterValue', name: 'qmstrdemorepo', value: params.qmstrdemorepo]], propagate: false
         }
     }
     catch (Exception e)
     {
         currentBuild.result = 'FAILURE'
-        if (currentBuild.getPreviousBuild().result != 'FAILURE') {
-            build job: 'QMSTR-intern/qmstr-notify', parameters: [string(name: 'Message', value:"!!! Job ${env.JOB_NAME} ${env.BUILD_NUMBER} Failed with exception: ${e}. see error at ${env.BUILD_URL}")], propagate: false
-        }
 
         if (fileExists(qmstrbin + 'qmstrctl')) {
             withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
                 sh "qmstrctl logs"
                 sh "qmstrctl quit"
             }
+        }
+    }
+    finally {
+        if (currentBuild.result == 'SUCCESS' && currentBuild.getPreviousBuild().result != 'SUCCESS') {
+            googlechatnotification message: "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. See ${env.BUILD_URL}", url: "id:qmstr_hangout_chat_webhook"
+        }
+        if (currentBuild.result == 'FAILURE') {
+            googlechatnotification message: "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} failed. See ${env.BUILD_URL}", url: "id:qmstr_hangout_chat_webhook"
         }
     }
 }
