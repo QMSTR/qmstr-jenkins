@@ -1,8 +1,8 @@
-#!groovy
 node {
+
     def qmstrbin = "${env.WORKSPACE}/bin"
     def qmstraddress = ""
-    def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
+    def qmstrcachedir = "$HOME/workspace/qmstr-website/qmstrcache"
 
     try{
 
@@ -70,11 +70,11 @@ node {
         }
         stage('Start qmstr-master server') {
             dir("qmstr-demo/demos/curl") {
-                sh "sed -i -e 's#server:#server:\\n    cachedir: \"${qmstrcachedir}\"#' qmstr.yaml"
+                sh "sed -i -e '/analysis:/i \\  server: \\n    cachedir: \"${qmstrcachedir}\"' qmstr.yaml"
                 sh "sed -i -e 's#localhost:8080#qmstr.org/packages#' qmstr.yaml"
                 sh "sed -i -e '/generatehtml/s/# *//' qmstr.yaml"
                 sh "cat qmstr.yaml"
-                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait |cut -d \"=\" -f 2", returnStdout: true)
+                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait | cut -d \'=\' -f 2", returnStdout: true)
                 qmstraddress = qmstraddress.trim()
             }
         }
@@ -105,7 +105,7 @@ node {
             }
         }
         stage('Generate hugo website') {
-            build job: '/QMSTR/hugo-website-generation', parameters: [[$class: 'StringParameterValue', name: 'qmstrbranch', value: params.qmstrbranch], [$class: 'StringParameterValue', name: 'qmstrrepo', value: params.qmstrrepo], [$class: 'StringParameterValue', name: 'qmstrdemobranch', value: params.qmstrdemobranch], [$class: 'StringParameterValue', name: 'qmstrdemorepo', value: params.qmstrdemorepo]], propagate: false
+            build job: '/qmstr-website/hugo-web-generation', propagate: false
         }
     }
     catch (Exception e)
