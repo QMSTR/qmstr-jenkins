@@ -8,9 +8,9 @@ node{
         }
         stage('Copy artifacts') {
             echo "Copying artifacts from last successful build from DOCS job"
-            copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'QMSTR/qmstr-docs-static', selector: upstream(fallbackToLastSuccessful: true)
+            copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'qmstr-website/docs', selector: upstream(fallbackToLastSuccessful: true)
             echo "Copying artifacts from last successful build from the hugo website generation job"
-            copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'QMSTR/hugo-website-generation', selector: upstream(fallbackToLastSuccessful: true)
+            copyArtifacts fingerprintArtifacts: true,  flatten: true, projectName: 'qmstr-website/hugo-web-generation', selector: upstream(fallbackToLastSuccessful: true)
         }
         stage('Publish website'){
             withEnv(["PATH+SNAP=/snap/bin"]){
