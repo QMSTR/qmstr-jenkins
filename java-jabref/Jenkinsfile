@@ -6,13 +6,6 @@ node {
 
     try{
 
-        parameters {
-            string(name: 'qmstrbranch', defaultValue: 'master', description: 'Branch of qmstr repo to build')
-            string(name: 'qmstrrepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
-            string(name: 'qmstrdemobranch', defaultValue: 'master', description: 'Branch of qmstr demo repo to build')
-            string(name: 'qmstrdemorepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
-        }
-
         stage('clean')
         {
             cleanWs(deleteDirs: true,
@@ -30,16 +23,16 @@ node {
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [],
                     submoduleCfg: [],
-                    branches: [[name: "${params.qmstrbranch}"]],
-                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrrepo}/qmstr.git"]]])
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr.git"]]])
             }
             dir("qmstr-demo"){
                 checkout([$class: 'GitSCM',
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [],
                     submoduleCfg: [],
-                    branches: [[name: "${params.qmstrdemobranch}"]],
-                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrdemorepo}/qmstr-demo.git"]]])
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr-demo.git"]]])
             }
             dir("qmstr-demo/demos/java-jabref/jabref"){
                 checkout([$class: 'GitSCM',
@@ -111,7 +104,7 @@ node {
             archiveArtifacts 'qmstr/qmstr-reporter-html/qmstr-reports.tar.bz2'
         }
         stage('Publish report to website') {
-            build job: '/QMSTR/hugo-website-generation', parameters: [[$class: 'StringParameterValue', name: 'qmstrbranch', value: params.qmstrbranch], [$class: 'StringParameterValue', name: 'qmstrrepo', value: params.qmstrrepo], [$class: 'StringParameterValue', name: 'qmstrdemobranch', value: params.qmstrdemobranch], [$class: 'StringParameterValue', name: 'qmstrdemorepo', value: params.qmstrdemorepo]], propagate: false
+            build job: '/qmstr-website/hugo-website-generation', propagate: false
         }
     }
     catch (Exception e)
