@@ -2,7 +2,7 @@
 node {
     def qmstrbin = "${env.WORKSPACE}/bin"
     def qmstraddress = ""
-    def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
+    def qmstrcachedir = "$HOME/workspace/qmstr-website/qmstrcache"
 
     try{
 
@@ -76,9 +76,11 @@ node {
         }
         stage('Start qmstr-master server') {
             dir("qmstr-demo/demos/java-jabref") {
-                sh "sed -i -e 's#server:#server:\\n    cachedir: \"${qmstrcachedir}\"#' qmstr.yaml"
+                sh "sed -i -e '/analysis:/i \\  server: \\n    cachedir: \"${qmstrcachedir}\"' qmstr.yaml"
+                sh "sed -i -e 's#localhost:8080#qmstr.org/packages#' qmstr.yaml"
+                sh "sed -i -e '/generatehtml/s/# *//' qmstr.yaml"
                 sh "cat qmstr.yaml"
-                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait |cut -d \"=\" -f 2", returnStdout: true)
+                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait | cut -d \'=\' -f 2", returnStdout: true)
                 qmstraddress = qmstraddress.trim()
             }
         }
