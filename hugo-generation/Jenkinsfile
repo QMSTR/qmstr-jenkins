@@ -4,12 +4,6 @@ node{
     def qmstrcachedir = "$HOME/workspace/QMSTR/qmstrcache"
 
     try{
-        parameters {
-            string(name: 'qmstrbranch', defaultValue: 'master', description: 'Branch of qmstr repo to build')
-            string(name: 'qmstrrepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
-            string(name: 'qmstrdemobranch', defaultValue: 'master', description: 'Branch of qmstr demo repo to build')
-            string(name: 'qmstrdemorepo', defaultValue: 'QMSTR', description: 'Repo to use QMSTR or endocode')
-        }
         stage('clean')
         {
             cleanWs(deleteDirs: true,
@@ -27,16 +21,16 @@ node{
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [],
                     submoduleCfg: [],
-                    branches: [[name: "${params.qmstrbranch}"]],
-                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrrepo}/qmstr.git"]]])
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr.git"]]])
             }
             dir("qmstr-demo"){
                 checkout([$class: 'GitSCM',
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [],
                     submoduleCfg: [],
-                    branches: [[name: "${params.qmstrdemobranch}"]],
-                    userRemoteConfigs: [[url: "https://github.com/${params.qmstrdemorepo}/qmstr-demo.git"]]])
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr-demo.git"]]])
             }
         }
         stage('Compile qmstr') {
