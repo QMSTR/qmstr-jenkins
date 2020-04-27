@@ -1,0 +1,118 @@
+node {
+
+    def qmstrbin = "${env.WORKSPACE}/bin"
+    def qmstraddress = ""
+    def qmstrcachedir = "$HOME/workspace/qmstr-website/qmstrcache"
+
+    try{
+
+        stage('clean')
+        {
+            cleanWs(deleteDirs: true,
+                patterns: [
+                    [pattern: 'qmstrcache', type: 'EXCLUDE'],
+                    [pattern: 'qmstrcache/**', type: 'EXCLUDE'],
+                    [pattern: '.git', type: 'EXCLUDE'],
+                    [pattern: '.git/**', type: 'EXCLUDE']
+            ])
+            sh "ls -laR"
+        }
+        stage('Clone sources') {
+            dir('qmstr-master') {
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr.git"]]])
+            }
+            dir("qmstr-demo"){
+                checkout([$class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    submoduleCfg: [],
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr-demo.git"]]])
+            }
+            dir("qmstr-demo/demos/python-flask/flask"){
+                checkout([$class: 'GitSCM',
+                    branches: [[name: "master"]],
+                    userRemoteConfigs: [[url: 'https://github.com/pallets/flask.git']]
+                ])
+                sh "git clean -fxd"
+            }
+        }
+        stage('Compile qmstr') {
+            dir("qmstr-master"){
+                sh 'make democontainer'
+                sh "mkdir ${qmstrbin}"
+                sh "mkdir ${qmstrcachedir} || true"
+                def mastername = sh(script: 'docker create qmstr/master', returnStdout: true)
+                mastername = mastername.trim()
+                sh "docker cp ${mastername}:/usr/local/bin/qmstr ${qmstrbin}/"
+                sh "docker cp ${mastername}:/usr/local/bin/qmstrctl ${qmstrbin}/"
+                sh "docker rm ${mastername}"
+            }
+        }
+        stage('Build flask builder image') {
+            dir("qmstr-demo"){
+                sh 'make python-flaskdemo'
+            }
+        }
+        stage('Start qmstr-master server') {
+            dir("qmstr-demo/demos/python-flask") {
+                sh "sed -i -e '/analysis:/i \\  server: \\n    cachedir: \"${qmstrcachedir}\"' qmstr.yaml"
+                sh "sed -i -e 's#localhost:8080#qmstr.org/packages#' qmstr.yaml"
+                sh "sed -i -e '/generatehtml/s/# *//' qmstr.yaml"
+                sh "cat qmstr.yaml"
+                qmstraddress = sh(script: "${qmstrbin}/qmstrctl start --verbose --wait | cut -d \'=\' -f 2", returnStdout: true)
+                qmstraddress = qmstraddress.trim()
+            }
+        }
+        stage('Compile flask with qmstr') {
+            dir("qmstr-demo/demos/python-flask"){
+                withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl spawn qmstr/python-flaskdemo qmstr run ${PY_CMD}"
+                }
+            }
+        }
+        stage('Analysis') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl analyze --verbose"
+            }
+        }
+        stage('Reporting') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                    sh "qmstrctl report --verbose"
+            }
+        }
+        stage('Shutdown qmstr-master') {
+            withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+                sh "qmstrctl quit"
+            }
+        }
+        stage('Generate hugo website') {
+            build job: '/qmstr-website/hugo-web-generation', propagate: false
+        }
+    }
+    catch (Exception e)
+    {
+        currentBuild.result = 'FAILURE'
+
+        withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
+            echo "########################################"
+            echo "######    QMSTR CONTAINER LOGS    ######"
+            echo "########################################"
+            sh "qmstrctl logs"
+            sh "qmstrctl quit"
+        }
+    }
+    finally {
+        if (currentBuild.result == 'SUCCESS' && currentBuild.getPreviousBuild().result != 'SUCCESS') {
+            googlechatnotification message: "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} successfully finished. See ${env.BUILD_URL}", url: "id:qmstr_hangout_chat_webhook"
+        }
+        if (currentBuild.result == 'FAILURE') {
+            googlechatnotification message: "Job ${env.JOB_NAME} ${env.BUILD_NUMBER} failed. See ${env.BUILD_URL}", url: "id:qmstr_hangout_chat_webhook"
+        }
+    }
+}
