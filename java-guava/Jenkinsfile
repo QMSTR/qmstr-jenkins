@@ -18,7 +18,7 @@ node {
             sh "ls -laR"
         }
         stage('Clone sources') {
-            dir('qmstr-master') {
+            dir('qmstr') {
                 checkout([$class: 'GitSCM',
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [],
@@ -34,16 +34,24 @@ node {
                     branches: [[name: "master"]],
                     userRemoteConfigs: [[url: "https://github.com/QMSTR/qmstr-demo.git"]]])
             }
-            dir("qmstr-demo/demos/python-flask/flask"){
+            dir("qmstr-demo/demos/java-guava/guava"){
                 checkout([$class: 'GitSCM',
                     branches: [[name: "master"]],
-                    userRemoteConfigs: [[url: 'https://github.com/pallets/flask.git']]
+                    userRemoteConfigs: [[url: 'https://github.com/google/guava.git']]
                 ])
                 sh "git clean -fxd"
             }
+            dir("web"){
+                git poll: false, url: 'https://github.com/qmstr/web'
+            }
+        }
+        stage('Apply qmstr plugin to pom') {
+            dir("qmstr-demo/demos/java-guava/guava"){
+                sh 'patch -p1  < ../0001-Apply-qmstr-plugin.patch'
+            }
         }
         stage('Compile qmstr') {
-            dir("qmstr-master"){
+            dir("qmstr"){
                 sh 'make democontainer'
                 sh "mkdir ${qmstrbin}"
                 sh "mkdir ${qmstrcachedir} || true"
@@ -54,13 +62,13 @@ node {
                 sh "docker rm ${mastername}"
             }
         }
-        stage('Build flask builder image') {
+        stage('Build guava builder image') {
             dir("qmstr-demo"){
-                sh 'make python-flaskdemo'
+                sh 'make java-guavademo EXTRA_BUILD_OPTS=--no-cache'
             }
         }
         stage('Start qmstr-master server') {
-            dir("qmstr-demo/demos/python-flask") {
+            dir("qmstr-demo/demos/java-guava") {
                 sh "sed -i -e '/analysis:/i \\  server: \\n    cachedir: \"${qmstrcachedir}\"' qmstr.yaml"
                 sh "sed -i -e 's#localhost:8080#qmstr.org/packages#' qmstr.yaml"
                 sh "sed -i -e '/generatehtml/s/# *//' qmstr.yaml"
@@ -69,10 +77,10 @@ node {
                 qmstraddress = qmstraddress.trim()
             }
         }
-        stage('Compile flask with qmstr') {
-            dir("qmstr-demo/demos/python-flask"){
+        stage('Compile guava with qmstr') {
+            dir("qmstr-demo/demos/java-guava"){
                 withEnv(["PATH=${qmstrbin}:${env.PATH}", "QMSTR_MASTER=${qmstraddress}"]) {
-                    sh "qmstrctl spawn qmstr/python-flaskdemo qmstr run ${PY_CMD}"
+                    sh "qmstrctl create package:Guava && qmstr --container qmstr/java-guavademo mvn -pl .,guava clean package"
                 }
             }
         }
@@ -91,7 +99,7 @@ node {
                 sh "qmstrctl quit"
             }
         }
-       stage('Archive artifact')
+        stage('Archive artifact')
         {
             archiveArtifacts 'qmstr/qmstr-reporter-html/qmstr-reports.tar.bz2'
         }
@@ -99,7 +107,6 @@ node {
             build job: '/qmstr-website/hugo-website-generation', propagate: false
         }
     }
-
     catch (Exception e)
     {
         currentBuild.result = 'FAILURE'
